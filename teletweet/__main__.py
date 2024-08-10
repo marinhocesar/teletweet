@@ -37,7 +37,7 @@ twitter_api = tweepy.API(auth=auth)
 
 try:
     screen_name = twitter_api.verify_credentials().screen_name
-except:
+except Exception:
     logging.error("could not access twitter v1API.")
     raise ConnectionError
 
@@ -46,19 +46,35 @@ logging.warning(f"successfully logged into @{screen_name}!")
 logging.warning("----------------------------------")
 
 
-async def start(update: Update, context: CallbackContext):
+async def check_is_authorized(update: Update, context: CallbackContext):
+    if update.message is None:
+        return False
     if str(context._chat_id) != CHAT_ID:
-        return
-    if update.message is not None:
+        logging.error("forbidden chat tried to connect.")
         await update.message.reply_text(
-            "Hi! Send me a message or photo, and I will tweet it."
+            "You are not allowed to use this chat. Please disconnect."
         )
+        return False
+    return True
+
+
+async def start(update: Update, context: CallbackContext):
+    is_authorized = await check_is_authorized(update=update, context=context)
+    if not is_authorized:
+        return
+    if update.message is None:
+        return
+
+    await update.message.reply_text(
+        "Hi! Send me a message or photo, and I will tweet it."
+    )
 
 
 async def tweet_text(update: Update, context: CallbackContext):
-    if update.message is None:
+    is_authorized = await check_is_authorized(update=update, context=context)
+    if not is_authorized:
         return
-    if str(context._chat_id) != CHAT_ID:
+    if update.message is None:
         return
 
     message_text = update.message.text
@@ -72,14 +88,10 @@ async def tweet_text(update: Update, context: CallbackContext):
 
 
 async def tweet_photo(update: Update, context: CallbackContext):
-    if update.message is None:
+    is_authorized = await check_is_authorized(update=update, context=context)
+    if not is_authorized:
         return
-
-    if str(context._chat_id) != CHAT_ID:
-        logging.error("forbidden chat tried to connect.")
-        await update.message.reply_text(
-            "You are not allowed to use this chat. Please disconnect."
-        )
+    if update.message is None:
         return
 
     message_text = update.message.caption
@@ -107,13 +119,10 @@ async def tweet_photo(update: Update, context: CallbackContext):
 
 
 async def message_handler_not_implemented(update: Update, context: CallbackContext):
-    if update.message is None:
+    is_authorized = await check_is_authorized(update=update, context=context)
+    if not is_authorized:
         return
-    if str(context._chat_id) != CHAT_ID:
-        logging.error("forbidden chat tried to connect.")
-        await update.message.reply_text(
-            "You are not allowed to use this chat. Please disconnect."
-        )
+    if update.message is None:
         return
 
     logging.error("type of message not supported")
@@ -130,13 +139,14 @@ def main():
 
     try:
         application = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
-    except:
+    except Exception:
         logging.error("could not build telegram connection.")
         raise ConnectionError
 
     handled_message_types = filters.TEXT & filters.PHOTO
     application.add_handler(CommandHandler("start", start))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, tweet_text))
+    application.add_handler(MessageHandler(filters.PHOTO, tweet_photo))
     application.add_handler(
         MessageHandler(~handled_message_types, message_handler_not_implemented)
     )
