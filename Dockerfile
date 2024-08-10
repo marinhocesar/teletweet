@@ -6,4 +6,4 @@ COPY . .
 
 RUN poetry install
 
-ENTRYPOINT ["poetry", "run", "python", "-m", "teletweet"]
+ENTRYPOINT ["poetry", "run", "python", "-u", "-m", "teletweet"]

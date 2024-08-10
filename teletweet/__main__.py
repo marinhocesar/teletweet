@@ -1,3 +1,4 @@
+import logging
 import os
 import tweepy
 from telegram import Update
@@ -17,6 +18,8 @@ from config import (
     CHAT_ID,
 )
 
+logging.warning("logging into twitter.")
+
 # Set up Twitter API
 twitter_client = tweepy.Client(
     consumer_key=TWITTER_CONSUMER_KEY,
@@ -32,7 +35,15 @@ auth = tweepy.OAuth1UserHandler(
 )
 twitter_api = tweepy.API(auth=auth)
 
-print(twitter_api.verify_credentials().screen_name)
+try:
+    screen_name = twitter_api.verify_credentials().screen_name
+except:
+    logging.error("could not access twitter v1API.")
+    raise ConnectionError
+
+logging.warning("----------------------------------")
+logging.warning(f"successfully logged into @{screen_name}!")
+logging.warning("----------------------------------")
 
 
 async def start(update: Update, context: CallbackContext):
@@ -45,24 +56,33 @@ async def start(update: Update, context: CallbackContext):
 
 
 async def tweet_text(update: Update, context: CallbackContext):
-    if str(context._chat_id) != CHAT_ID:
-        return
     if update.message is None:
         return
-    message = update.message.text
+    if str(context._chat_id) != CHAT_ID:
+        return
+
+    message_text = update.message.text
     try:
-        twitter_client.create_tweet(text=message, user_auth=True)
-        await update.message.reply_text("Tweeted: " + (message or ""))
+        twitter_client.create_tweet(text=message_text, user_auth=True)
+        logging.warning("tweet sent")
+        await update.message.reply_text("Tweeted: " + (message_text or ""))
     except Exception as e:
+        logging.error("could not send tweet")
         await update.message.reply_text("Failed to tweet. Error: " + str(e))
 
 
 async def tweet_photo(update: Update, context: CallbackContext):
-    if str(context._chat_id) != CHAT_ID:
-        return
     if update.message is None:
         return
-    message = update.message.caption
+
+    if str(context._chat_id) != CHAT_ID:
+        logging.error("forbidden chat tried to connect.")
+        await update.message.reply_text(
+            "You are not allowed to use this chat. Please disconnect."
+        )
+        return
+
+    message_text = update.message.caption
     photo_file = await update.message.photo[
         -1
     ].get_file()  # Await the coroutine to get the file object
@@ -74,23 +94,59 @@ async def tweet_photo(update: Update, context: CallbackContext):
     media = twitter_api.simple_upload(filename=photo_path)
     media_id = media.media_id
     try:
-        twitter_client.create_tweet(text=message, media_ids=[media_id], user_auth=True)
+        twitter_client.create_tweet(
+            text=message_text, media_ids=[media_id], user_auth=True
+        )
+        logging.warning("tweet sent")
         await update.message.reply_text("Tweeted photo!")
     except Exception as e:
+        logging.error("could not send tweet")
         await update.message.reply_text("Failed to tweet photo. Error: " + str(e))
     finally:
         os.remove(photo_path)
 
 
-def main():
-    application = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
+async def message_handler_not_implemented(update: Update, context: CallbackContext):
+    if update.message is None:
+        return
+    if str(context._chat_id) != CHAT_ID:
+        logging.error("forbidden chat tried to connect.")
+        await update.message.reply_text(
+            "You are not allowed to use this chat. Please disconnect."
+        )
+        return
 
+    logging.error("type of message not supported")
+    await update.message.reply_text(
+        "This type of message is not yet supported in the context of this application"
+    )
+    return
+
+
+def main():
+    logging.warning("----------------------------------")
+    logging.warning("building telegram connection")
+    logging.warning("----------------------------------")
+
+    try:
+        application = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
+    except:
+        logging.error("could not build telegram connection.")
+        raise ConnectionError
+
+    handled_message_types = filters.TEXT & filters.PHOTO
     application.add_handler(CommandHandler("start", start))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, tweet_text))
-    application.add_handler(MessageHandler(filters.PHOTO, tweet_photo))
+    application.add_handler(
+        MessageHandler(~handled_message_types, message_handler_not_implemented)
+    )
 
     application.run_polling()
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as e_info:
+        logging.error(e_info)
+        logging.warning("shutting down application")
