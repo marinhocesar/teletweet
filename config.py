@@ -9,8 +9,5 @@ TWITTER_CONSUMER_KEY = str(os.getenv('TWITTER_CONSUMER_KEY')) or ''
 TWITTER_CONSUMER_SECRET = str(os.getenv('TWITTER_CONSUMER_SECRET')) or ''
 TWITTER_ACCESS_TOKEN = str(os.getenv('TWITTER_ACCESS_TOKEN')) or ''
 TWITTER_ACCESS_SECRET = str(os.getenv('TWITTER_ACCESS_SECRET')) or ''
-TWITTER_ACCESS_v2_TOKEN = str(os.getenv('TWITTER_ACCESS_v2_TOKEN')) or ''
-TWITTER_ACCESS_v2_SECRET = str(os.getenv('TWITTER_ACCESS_v2_SECRET')) or ''
-# Telegram bot token from environment variable
 TELEGRAM_TOKEN = str(os.getenv('TELEGRAM_TOKEN')) or ''
 CHAT_ID = str(os.getenv('CHAT_ID')) or ''
