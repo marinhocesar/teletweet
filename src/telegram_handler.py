@@ -9,7 +9,7 @@ from config import (
 from src.twitter_handler import TwitterHandler
 
 
-class TelegramBot():
+class TelegramBot:
     def __init__(self) -> None:
         self._setup()
 
@@ -53,9 +53,9 @@ class TelegramBot():
             return
 
         message_text = update.message.caption
-        photo_file = await update.message.photo[
-            -1
-        ].get_file()  # Await the coroutine to get the file object
+        photo = update.message.photo[-1]
+        photo.set_bot(bot=self.bot)
+        photo_file = await photo.get_file()  # Await the coroutine to get the file object
         photo_path = os.path.join("/tmp", f"{update.message.photo[-1].file_id}.jpg")
 
         twitter = TwitterHandler()
@@ -67,11 +67,14 @@ class TelegramBot():
         try:
             twitter.tweet_photo(text=message_text or "", media_id=media_id)
             logging.warning("tweet sent")
-            await self.bot.send_message(chat_id=update.message.chat_id, text="Tweeted photo!")
+            await self.bot.send_message(
+                chat_id=update.message.chat_id, text="Tweeted photo!"
+            )
         except Exception as e:
             logging.error("could not send tweet")
             await self.bot.send_message(
-                chat_id=update.message.chat_id, text="Failed to tweet photo. Error: " + str(e)
+                chat_id=update.message.chat_id,
+                text="Failed to tweet photo. Error: " + str(e),
             )
         finally:
             os.remove(photo_path)
