@@ -2,6 +2,9 @@
 
 # Packages
 /dist/*
+.venv
+/poetry.toml
+.env
 
 # Unit test / coverage reports
 .coverage
@@ -14,10 +17,6 @@
 
 /docs/site/*
 .mypy_cache
-
-.venv
-/poetry.toml
-.env
 
 # scripts
 build-and-push.sh
