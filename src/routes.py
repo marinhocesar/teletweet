@@ -1,13 +1,12 @@
 import logging
-import os
 import requests
 
 from flask import Response, request
-from telegram import Message
+from telegram import Message, Update
 
 from app import app
 from config import CHAT_ID, TELEGRAM_TOKEN
-from src.twitter_handler import TwitterHandler
+from src.telegram_handler import TelegramBot
 
 
 def tel_send_message(chat_id, text):
@@ -34,32 +33,27 @@ def check_is_authorized(message: Message):
 async def index():
     if request.method == "POST":
         msg = request.get_json()
-        message = Message.de_json(data=msg)
+        logging.warning(msg)
+        update = Update.de_json(data=msg)
+        if update is None:
+            return Response("no message", status=500)
+        message = update.message
         if message is None:
             return Response("no message", status=500)
 
         is_authorized = check_is_authorized(message=message)
-
         if is_authorized is False:
             return Response("not authorized", status=403)
 
-        twitter = TwitterHandler()
+        telegram_bot = TelegramBot()
 
-        response = ""
-        if message.photo[-1] is not None:
-            photo_file = await message.photo[-1].get_file()
-            photo_path = os.path.join("/tmp", f"{message.photo[-1].file_id}.jpg")
-            text = message.caption
-            response = await twitter.tweet_photo(
-                photo_file=photo_file, photo_path=photo_path, text=text or ""
-            )
+        if len(message.photo) > 0 and message.photo[-1] is not None:
+            await telegram_bot.tweet_photo(update=update)
         elif message.text is not None:
-            text = message.text
-            response = twitter.tweet_text(text=text)
+            await telegram_bot.tweet_text(update=update)
         else:
-            response = twitter.message_handler_not_implemented()
+            await telegram_bot.message_handler_not_implemented(update=update)
 
-        tel_send_message(message.chat_id, response)
         return Response("ok", status=200)
     else:
         return "<h1>Welcome!</h1>"

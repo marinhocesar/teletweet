@@ -1,6 +1,4 @@
 import logging
-import os
-from telegram import File
 import tweepy
 
 from config import (
@@ -40,35 +38,13 @@ class TwitterHandler(metaclass=SingletonMeta):
         logging.warning(f"successfully logged into @{screen_name}!")
 
     def tweet_text(self, text: str):
-        try:
-            self.__twitter_client.create_tweet(text=text, user_auth=True)
-            logging.warning("tweet sent")
-            return "Tweeted: " + (text or "")
-        except Exception as e:
-            logging.error("could not send tweet")
-            return "Failed to tweet. Error: " + str(e)
+        self.__twitter_client.create_tweet(text=text, user_auth=True)
 
-    async def tweet_photo(self, photo_file: File, photo_path: str, text: str) -> str:
-        await photo_file.download_to_drive(
-            photo_path
-        )  # Await the coroutine to download the file
-        media = self.__twitter_api.simple_upload(filename=photo_path)
-        media_id = media.media_id
+    def tweet_photo(self, media_id: str, text: str):
+        self.__twitter_client.create_tweet(
+            text=text, media_ids=[media_id], user_auth=True
+        )
 
-        reply_text = ""
-        try:
-            self.__twitter_client.create_tweet(
-                text=text, media_ids=[media_id], user_auth=True
-            )
-            logging.warning("tweet sent")
-            reply_text = "Tweeted photo!"
-        except Exception as e:
-            logging.error("could not send tweet")
-            reply_text = "Failed to tweet photo. Error: " + str(e)
-        finally:
-            os.remove(photo_path)
-            return reply_text
-
-    def message_handler_not_implemented(self):
-        logging.error("type of message not supported")
-        return "This type of message is not yet supported in the context of this application"
+    def simple_upload(self, filename: str):
+        media = self.__twitter_api.simple_upload(filename=filename)
+        return media
