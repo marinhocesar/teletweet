@@ -43,7 +43,7 @@ async def index():
 
         is_authorized = check_is_authorized(message=message)
         if is_authorized is False:
-            return Response("not authorized", status=403)
+            return Response("not authorized", status=200)
 
         telegram_bot = TelegramBot()
 
